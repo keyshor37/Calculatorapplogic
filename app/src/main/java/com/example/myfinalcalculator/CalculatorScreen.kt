@@ -10,11 +10,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun CalculatorScreen(modifier: Modifier = Modifier) {
+fun CalculatorScreen(
+    modifier: Modifier = Modifier,
+    model: CalculatorModel,
+    onOpenConverter: () -> Unit
+) {
     var display by remember { mutableStateOf("0") }
-
-    var left by remember { mutableStateOf<Double?>(null) }
-    var op by remember { mutableStateOf<Char?>(null) }
     var isNewEntry by remember { mutableStateOf(true) }
 
     fun currentValue(): Double = display.toDoubleOrNull() ?: 0.0
@@ -35,39 +36,32 @@ fun CalculatorScreen(modifier: Modifier = Modifier) {
 
     fun clearAll() {
         display = "0"
-        left = null
-        op = null
         isNewEntry = true
+        model.clear()
     }
 
     fun setOperator(c: Char) {
-        if (left == null) {
-            left = currentValue()
-        } else if (op != null && !isNewEntry) {
-            val res = eval(left!!, op!!, currentValue())
-            left = res
-            display = format(res)
-        }
-        op = c
+        val res = model.setOperator(currentValue(), c)
+        display = model.format(res)
         isNewEntry = true
     }
 
     fun equals() {
-        val l = left
-        val o = op
-        if (l != null && o != null && !isNewEntry) {
-            val res = eval(l, o, currentValue())
-            display = format(res)
-            left = null
-            op = null
-            isNewEntry = true
-        }
+        val res = model.calculateResult(currentValue())
+        display = model.format(res)
+        isNewEntry = true
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
         Text(
             text = display,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
             fontSize = 40.sp,
             textAlign = TextAlign.End
         )
@@ -87,15 +81,23 @@ fun CalculatorScreen(modifier: Modifier = Modifier) {
             ) {
                 row.forEach { label ->
                     if (label.isBlank()) {
-                        Spacer(Modifier.weight(1f).height(56.dp))
+                        Spacer(
+                            Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                        )
                     } else {
                         Button(
                             onClick = {
                                 when (label) {
                                     "C" -> clearAll()
                                     "⌫" -> {
-                                        if (!isNewEntry && display.length > 1) display = display.dropLast(1)
-                                        else { display = "0"; isNewEntry = true }
+                                        if (!isNewEntry && display.length > 1) {
+                                            display = display.dropLast(1)
+                                        } else {
+                                            display = "0"
+                                            isNewEntry = true
+                                        }
                                     }
                                     "." -> inputDot()
                                     "+" -> setOperator('+')
@@ -106,26 +108,27 @@ fun CalculatorScreen(modifier: Modifier = Modifier) {
                                     else -> inputDigit(label)
                                 }
                             },
-                            modifier = Modifier.weight(1f).height(56.dp)
-                        ) { Text(label, fontSize = 20.sp) }
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                        ) {
+                            Text(label, fontSize = 20.sp)
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(10.dp))
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onOpenConverter,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            Text("Km → Miles converter", fontSize = 18.sp)
+        }
     }
-}
-
-private fun eval(a: Double, op: Char, b: Double): Double = when (op) {
-    '+' -> a + b
-    '-' -> a - b
-    '*' -> a * b
-    '/' -> if (b == 0.0) Double.NaN else a / b
-    else -> b
-}
-
-private fun format(x: Double): String {
-    if (x.isNaN()) return "Error"
-    val i = x.toLong()
-    return if (x == i.toDouble()) i.toString() else x.toString()
 }
